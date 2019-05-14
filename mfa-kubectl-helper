@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -eu
+
+NEEDS_SESSION_REFRESH=true
+
+# Check if the last session is valid
+LAST_CREDS_FILE=/tmp/${AWS_PROFILE}-mfa-kubectl-last-creds.json
+if [[ -f "${LAST_CREDS_FILE}" ]]; then
+    EXPIRATION_DATE=$( cat ${LAST_CREDS_FILE} | jq -r .Credentials.Expiration )
+    EXPIRATION_TIMESTAMP=$( TZ=UTC date -j -f "%Y-%m-%dT%TZ" "${EXPIRATION_DATE}" "+%s" )
+    NOW_TIMESTAMP=$( TZ=UTC date "+%s" )
+    NOW_TIMESTAMP=$(( ${NOW_TIMESTAMP} + 5 )) # buffered
+    if [ "${EXPIRATION_TIMESTAMP}" -gt "${NOW_TIMESTAMP}" ]; then
+        NEEDS_SESSION_REFRESH=false
+    else
+        echo "Your previous session has been expired. Trying to retrieve new session..." 1>&2
+        rm -f ${LAST_CREDS_FILE}
+    fi
+fi
+
+# Get new session tokens if needed
+if [ "x${NEEDS_SESSION_REFRESH}" == "xtrue" ];then
+    echo "Type your MFA code for ${AWS_MFA_SERIAL}..." 1>&2
+    read MFA_CODE
+
+    aws sts get-session-token --serial-number ${AWS_MFA_SERIAL} --token-code ${MFA_CODE} > ${LAST_CREDS_FILE}
+fi
+
+# Export credentials
+AWS_ACCESS_KEY_ID=$( cat ${LAST_CREDS_FILE} | jq -r .Credentials.AccessKeyId )
+AWS_SECRET_ACCESS_KEY=$( cat ${LAST_CREDS_FILE} | jq -r .Credentials.SecretAccessKey )
+AWS_SESSION_TOKEN=$( cat ${LAST_CREDS_FILE} | jq -r .Credentials.SessionToken )
+
+# Invoke aws-iam-authenticator, comment out the next line if you're using EKS's GetToken API
+aws-iam-authenticator "$@"
+
+# Invoke GetToken API, comment-in the next line if you're using EKS's GetToken API
+#aws "$@"
