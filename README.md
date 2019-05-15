@@ -3,6 +3,9 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)][license]
 
 [license]: https://github.com/toricls/eks-kubectl-mfa-helper/blob/master/LICENSE
+
+[![asciicast](https://asciinema.org/a/40wV0pEgaU3pTtvgMvUGuIX18.svg)](https://asciinema.org/a/40wV0pEgaU3pTtvgMvUGuIX18)
+
 Better friend for your MFA-forced IAM user and kubectl command.
 
 It retrieves and caches your temporary session tokens to pass it to `aws-iam-authenticator` or `aws eks get-token` command.
